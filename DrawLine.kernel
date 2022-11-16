@@ -1,0 +1,8 @@
+__kernel void DrawLine(__global int* screen, const int2 screenDims, const int2 startPoint, const int2 diffs, const uint length, const uint color){
+	float pos = get_global_id(0)/(float)length;
+	int xPos = ((int) (diffs.x * pos)) + startPoint.x;
+	int yPos = ((int) (diffs.y * pos)) + startPoint.y;
+	if (xPos >= 0 && xPos < screenDims.x && yPos >= 0 && yPos < screenDims.y){
+		screen[(yPos * screenDims.x) + xPos] = color;
+	}
+}

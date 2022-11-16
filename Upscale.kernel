@@ -1,0 +1,11 @@
+__kernel void Upscale(__global int *pixels, __global int *pixIn, const int2 outSize, const int2 inSize){
+	int w = outSize.x;
+	int h = outSize.y;
+	int inw = inSize.x;
+	int inh = inSize.y;
+	float xTransform = (((float)inw)/w);
+	float yTransform = (((float)inh)/h);
+	int i = get_global_id(0);
+	int j = get_global_id(1);
+	pixels[j*w + i] = pixIn[((((int)(j*yTransform))*inw)+((int)(i*xTransform)))];
+}

@@ -1,0 +1,30 @@
+__kernel void AdvRender(__global int* screen, __global int* texture, const int2 screenCoords, 
+					const int2 screenSize, const int2 textureCoords, const int2 textureSize, const float2 textureScale, 
+					const int2 flip, const int2 renderSize, const int2 waveAmp, const int2 wavePeriod, const int2 waveOffset, const float alphaShift){
+	int screenx = screenCoords.x + get_global_id(0) + (int)(waveAmp.x * sin( ((float)wavePeriod.x * get_global_id(1)) + waveOffset.x) );
+	if (screenx >= 0 && screenx < screenSize.x){
+		int screeny = screenCoords.y + get_global_id(1) + (int)(waveAmp.y * sin( ((float)wavePeriod.y * get_global_id(0)) + waveOffset.y) );
+		if (screeny >= 0 && screeny < screenSize.y){
+			int texturex = (textureCoords.x + (flip.x==0?(int)(get_global_id(0)/textureScale.x):(int)((renderSize.x - get_global_id(0)-1)/textureScale.x)))%textureSize.x;
+			int texturey = (textureCoords.y + (flip.y==0?(int)(get_global_id(1)/textureScale.y):(int)((renderSize.y - get_global_id(1)-1)/textureScale.y)))%textureSize.y;
+			int screenColor = screen[(screeny*screenSize.x)+screenx];
+			int screenB = screenColor & 0xff;
+			int screenG = (screenColor >> 8) & 0xff;
+			int screenR = (screenColor >> 16) & 0xff;
+			int screenA = (screenColor >> 24) & 0xff;
+			int texColor = texture[(texturey*textureSize.x)+texturex];
+			int texB = texColor & 0xff;
+			int	texG = (texColor >> 8) & 0xff;
+			int texR = (texColor >> 16) & 0xff;
+			int texA = min(0xff, (int)(((texColor >> 24) & 0xff) * alphaShift));
+			float screenInfluence = (0xff - texA)/(float)0xff;
+			float texInfluence = (float)texA/0xff;
+	        //probably still requires some tweaking, screen influence seems to not do the trick if alpha is low but RGB texture value is high
+			screen[(screeny*screenSize.x)+screenx] = 
+				(min(0xff,(screenA + texA)) << 24) + 
+				(min(0xff,((int)(screenR*screenInfluence) + (int)(texR*texInfluence))) << 16) + 
+				(min(0xff,((int)(screenG*screenInfluence) + (int)(texG*texInfluence))) << 8) + 
+				min(0xff,((int)(screenB*screenInfluence) + (int)(texB*texInfluence)));
+		}
+	}
+}

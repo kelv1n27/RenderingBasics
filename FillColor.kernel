@@ -1,0 +1,6 @@
+__kernel void FillColor(__global int *pixIn, const int2 size, const uint color){
+	int w = size.x;
+	int x = get_global_id(0);
+	int y = get_global_id(1);
+	pixIn[y*w + x] = color;
+}
