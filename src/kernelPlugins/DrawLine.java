@@ -11,6 +11,9 @@ import tbh.gfxInterface.KernelPlugin;
 
 public class DrawLine extends KernelPlugin{
 	
+	int prevStartX = Integer.MIN_VALUE, prevStartY = Integer.MIN_VALUE, prevEndX = Integer.MIN_VALUE, prevEndY = Integer.MIN_VALUE, 
+			prevColor = Integer.MIN_VALUE, prevCanvas = -1;
+	IntArrayImage prevImg;
 
 	@Override
 	public void run(Object[] arg0) {
@@ -38,12 +41,34 @@ public class DrawLine extends KernelPlugin{
 		int xDiff = endX - startX;
 		int yDiff = endY - startY;
 		int length = (int) Math.sqrt((double)(xDiff * xDiff) + (yDiff * yDiff));
-		clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(gfx.getMemoryObject(canvas)));
-		clSetKernelArg(kernel, 1, Sizeof.cl_int2, Pointer.to(new int[] {img.getWidth(), img.getHeight()}));
-		clSetKernelArg(kernel, 2, Sizeof.cl_int2, Pointer.to(new int[] {startX, startY}));
-		clSetKernelArg(kernel, 3, Sizeof.cl_int2, Pointer.to(new int[] {xDiff, yDiff}));
-		clSetKernelArg(kernel, 4, Sizeof.cl_uint, Pointer.to(new int[] {length}));
-		clSetKernelArg(kernel, 5, Sizeof.cl_uint, Pointer.to(new int[] {color}));
+		if (prevCanvas != canvas) {
+			clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(gfx.getMemoryObject(canvas)));
+			prevCanvas = canvas;
+		}
+		if (prevImg == null || !prevImg.equals(img)) {
+			clSetKernelArg(kernel, 1, Sizeof.cl_int2, Pointer.to(new int[] {img.getWidth(), img.getHeight()}));
+			prevImg = img;
+		}
+		boolean startChanged = false;
+		if (startX != prevStartX || prevStartY != startY) {
+			clSetKernelArg(kernel, 2, Sizeof.cl_int2, Pointer.to(new int[] {startX, startY}));
+			prevStartX = startX;
+			prevStartY = startY;
+			startChanged = true;
+		}
+		boolean endChanged = false;
+		if (prevEndX != endX || prevEndY != endY || startChanged) {
+			clSetKernelArg(kernel, 3, Sizeof.cl_int2, Pointer.to(new int[] {xDiff, yDiff}));
+			prevEndX = endX;
+			prevEndY = endY;
+			endChanged = true;
+		}
+		if (startChanged || endChanged) {
+			clSetKernelArg(kernel, 4, Sizeof.cl_uint, Pointer.to(new int[] {length}));
+		}
+		if (prevColor != color) {
+			clSetKernelArg(kernel, 5, Sizeof.cl_uint, Pointer.to(new int[] {color}));
+		}
 		
 		long local_work_size[] = new long[]{1, 1};
 		long global_work_size[] = new long[]{ (long) length, 0L};

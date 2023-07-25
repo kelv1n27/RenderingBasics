@@ -10,6 +10,12 @@ import memoryPlugins.IntArrayImage;
 import tbh.gfxInterface.KernelPlugin;
 
 public class Render extends KernelPlugin{
+	
+	int prevCanvas = -1, prevTextureIndex = -1, prevX = Integer.MIN_VALUE, prevY = Integer.MIN_VALUE, prevXSpriteOffset = Integer.MIN_VALUE, 
+			prevYSpriteOffset = Integer.MIN_VALUE, prevSpriteWidth = Integer.MIN_VALUE, prevSpriteHeight = Integer.MIN_VALUE;
+	float prevXScale = Float.NaN, prevYScale = Float.NaN, prevAlphaShift = Float.NaN;
+	//boolean prevFlipX = false, prevFlipY = false;
+	IntArrayImage prevSource, prevDest;
 
 	@Override
 	public void run(Object[] arg0) {
@@ -52,16 +58,51 @@ public class Render extends KernelPlugin{
 		}
 		
 		if (source != null) {
-			clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(gfx.getMemoryObject(canvas)));
-			clSetKernelArg(kernel, 1, Sizeof.cl_mem, Pointer.to(gfx.getMemoryObject(textureIndex)));
-			clSetKernelArg(kernel, 2, Sizeof.cl_int2, Pointer.to(new int[] {x, y}));
-			clSetKernelArg(kernel, 3, Sizeof.cl_int2, Pointer.to(new int[] {dest.getWidth(), dest.getHeight()}));//needs changing?
-			clSetKernelArg(kernel, 4, Sizeof.cl_int2, Pointer.to(new int[] {xSpriteOffset, ySpriteOffset}));
-			clSetKernelArg(kernel, 5, Sizeof.cl_int2, Pointer.to(new int[] {source.getWidth(), source.getHeight()}));
-			clSetKernelArg(kernel, 6, Sizeof.cl_float2, Pointer.to(new float[] {xScale, yScale}));
+			if (prevCanvas != canvas) {
+				clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(gfx.getMemoryObject(canvas)));
+				prevCanvas = canvas;
+			}
+			if (prevTextureIndex  != textureIndex) {
+				clSetKernelArg(kernel, 1, Sizeof.cl_mem, Pointer.to(gfx.getMemoryObject(textureIndex)));
+				prevTextureIndex = textureIndex;
+			}
+			if (prevX != x || prevY != y) {
+				clSetKernelArg(kernel, 2, Sizeof.cl_int2, Pointer.to(new int[] {x, y}));
+				prevX = x;
+				prevY = y;
+			}
+			if (prevDest == null || !prevDest.equals(dest)) {
+				clSetKernelArg(kernel, 3, Sizeof.cl_int2, Pointer.to(new int[] {dest.getWidth(), dest.getHeight()}));//needs changing?
+				prevDest = dest;
+			}
+			if (prevXSpriteOffset != xSpriteOffset || prevYSpriteOffset != ySpriteOffset) {
+				clSetKernelArg(kernel, 4, Sizeof.cl_int2, Pointer.to(new int[] {xSpriteOffset, ySpriteOffset}));
+				prevXSpriteOffset = xSpriteOffset;
+				prevYSpriteOffset = ySpriteOffset;
+			}
+			if (prevSource == null || !prevSource.equals(source)) {
+				clSetKernelArg(kernel, 5, Sizeof.cl_int2, Pointer.to(new int[] {source.getWidth(), source.getHeight()}));
+				prevSource = source;
+			}
+			boolean scaleChange = false;
+			if (prevXScale != xScale || prevYScale != yScale) {
+				clSetKernelArg(kernel, 6, Sizeof.cl_float2, Pointer.to(new float[] {xScale, yScale}));
+				prevXScale = xScale;
+				prevYScale = yScale;
+				scaleChange = true;
+			}
+			//can't really set these to an easily overwritten junk value, resetting one arg every time shouldn't be too bad right?
 			clSetKernelArg(kernel, 7, Sizeof.cl_int2, Pointer.to(new int[] {(flipX?1:0), (flipY?1:0)}));
-			clSetKernelArg(kernel, 8, Sizeof.cl_int2, Pointer.to(new int[] {(int)(spriteWidth*xScale), (int)(spriteHeight*yScale)}));
-			clSetKernelArg(kernel, 9, Sizeof.cl_float, Pointer.to(new float[] {alphaShift}));
+			if (prevSpriteWidth != spriteWidth || prevSpriteHeight != spriteHeight || scaleChange) {
+				clSetKernelArg(kernel, 8, Sizeof.cl_int2, Pointer.to(new int[] {(int)(spriteWidth*xScale), (int)(spriteHeight*yScale)}));
+				prevSpriteHeight = spriteHeight;
+				prevSpriteWidth = spriteWidth;
+			}
+			if (prevAlphaShift != alphaShift) {
+				clSetKernelArg(kernel, 9, Sizeof.cl_float, Pointer.to(new float[] {alphaShift}));
+				prevAlphaShift = alphaShift;
+			}
+			
 				
 			long local_work_size[] = new long[]{1, 1};
 			long global_work_size[] = new long[]{ (long) (spriteWidth*xScale), (long) (spriteHeight*yScale)};
